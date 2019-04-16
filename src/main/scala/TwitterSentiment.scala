@@ -14,74 +14,67 @@ object TwitterSentiment {
 
   def main(args: Array[String]): Unit = {
 
+    if (args.length < 6) {
+      System.err.println("Usage: TwitterSentiment <kafka server and port> <topic> <consumer key> <consumer secret> " +
+        "<access token> <access token secret> [<filters>]")
+      System.exit(1)
+    }
+
+    val Array(kafkaServer, topic, consumerKey, consumerSecret, accessToken, accessTokenSecret) = args.take(6)
+    val filters = args.takeRight(args.length - 6)
+
     Logger.getLogger("org").setLevel(Level.OFF)
     Logger.getLogger("akka").setLevel(Level.OFF)
     Logger.getLogger("twitter4j").setLevel(Level.OFF)
 
-    var (bootstrap_server, consumerKey, consumerSecret, accessToken, accessTokenSecret) =
-    try {
-      val properties = new Properties()
-      properties.load(getClass.getResourceAsStream("application.properties"))
-      (
-        properties.getProperty("bootstrap_server"),
-        properties.getProperty("twitter4j.oauth.consumerKey"),
-        properties.getProperty("twitter4j.oauth.consumerSecret"),
-        properties.getProperty("twitter4j.oauth.accessToken"),
-        properties.getProperty("twitter4j.oauth.accessTokenSecret")
-      )
-    } catch {
-      case e: Exception =>
-        e.printStackTrace()
-        sys.exit(1)
-    }
-
-
-    val appName = "TwitterData"
-
     val spark = SparkSession
       .builder()
-      .appName(appName)
-      .master("local[4]")
+      .appName("TwitterSentiment")
+      .master("local[*]")
       .getOrCreate()
+
     val sc = spark.sparkContext
     val ssc = new StreamingContext(sc, Seconds(1))
 
+    sc.setLogLevel("Error")
 
-    //    //Connection to Twitter API
     val cb = new ConfigurationBuilder
-    cb.setDebugEnabled(true).setOAuthConsumerKey(consumerKey).setOAuthConsumerSecret(consumerSecret).setOAuthAccessToken(accessToken).setOAuthAccessTokenSecret(accessTokenSecret)
-    //
+    cb.setDebugEnabled(true)
+      .setOAuthConsumerKey(consumerKey)
+      .setOAuthConsumerSecret(consumerSecret)
+      .setOAuthAccessToken(accessToken)
+      .setOAuthAccessTokenSecret(accessTokenSecret)
+
     val auth = new OAuthAuthorization(cb.build)
-    val tweets = TwitterUtils.createStream(ssc, Some(auth))
-    val englishTweets = tweets.filter(_.getLang() == "en")
 
+    val stream = TwitterUtils.createStream(ssc, Some(auth), filters)
+      .filter(_.getLang() == "en")
 
-    val statuses = englishTweets.map(status => {
+    val statuses = stream.map(status => {
+
       val pipeline = SentimentPipeline()
       val text = status.getText()
       val sentiment = pipeline.annotate(text)("sentiment").head
+
       (sentiment, text, status.getUser.getName(), status.getUser.getScreenName(), status.getCreatedAt.toString)
 
-    }
+    })
 
-    )
+    statuses.foreachRDD { rdd =>
 
-    statuses.foreachRDD { (rdd, time) =>
-
-      rdd.foreachPartition { partitionIter =>
+      rdd.foreachPartition { line =>
 
         val props = new Properties()
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
-        props.put("bootstrap.servers", bootstrap_server)
-        val producer = new KafkaProducer[String, String](props)
-        partitionIter.foreach { elem =>
-          val dat = elem.toString()
-          val data = new ProducerRecord[String, String]("new_topic", null, dat)
-          producer.send(data)
-          println(dat)
-        }
+        props.put("bootstrap.servers", kafkaServer)
 
+        val producer = new KafkaProducer[String, String](props)
+
+        line.foreach { elem =>
+          producer.send(new ProducerRecord[String, String](topic, null, elem.toString()))
+          println(elem.toString())
+        }
 
         producer.flush()
         producer.close()

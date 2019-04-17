@@ -88,7 +88,8 @@ object TwitterSentiment {
     val statuses = stream.map(status => {
       val text = status.getText()
       val sentiment = getSentiment(text)
-      (sentiment, text, status.getUser.getName(), status.getUser.getScreenName(), status.getCreatedAt.toString)
+      //(sentiment, text, status.getUser.getName(), status.getUser.getScreenName(), status.getCreatedAt.toString)
+      sentiment
     })
 
     statuses.foreachRDD { rdd =>

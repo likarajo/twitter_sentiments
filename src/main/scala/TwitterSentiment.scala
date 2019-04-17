@@ -1,6 +1,9 @@
 import java.util.Properties
 
-import com.johnsnowlabs.nlp.pretrained.pipelines.en.SentimentPipeline
+import edu.stanford.nlp.ling.CoreAnnotations
+import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations
+import edu.stanford.nlp.pipeline.StanfordCoreNLP
+import edu.stanford.nlp.sentiment.SentimentCoreAnnotations
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
@@ -9,9 +12,41 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import twitter4j.auth.OAuthAuthorization
 import twitter4j.conf.ConfigurationBuilder
 
-
 object TwitterSentiment {
 
+  /** Create pipeline of Stanford CoreNLP */
+  val props = new Properties()
+  props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
+  val pipeline = new StanfordCoreNLP(props)
+
+  /** Create method for obtaining sentiment of a text */
+  def getSentiment(text: String): String = {
+    var mainSentiment = 0
+    if (text != null && text.length() > 0) {
+      var longest = 0
+      val annotation = pipeline.process(text)
+      val list = annotation.get(classOf[CoreAnnotations.SentencesAnnotation])
+      val it = list.iterator()
+      while (it.hasNext) {
+        val sentence = it.next()
+        val tree = sentence.get(classOf[SentimentCoreAnnotations.SentimentAnnotatedTree])
+        val sentiment = RNNCoreAnnotations.getPredictedClass(tree)
+        val partText = sentence.toString()
+        if (partText.length() > longest) {
+          mainSentiment = sentiment
+          longest = partText.length()
+        }
+      }
+    }
+    if (mainSentiment < 2)
+      "Negative"
+    else if (mainSentiment == 2)
+      "Neutral"
+    else
+      "Positive"
+  }
+
+  /** Define the main method **/
   def main(args: Array[String]): Unit = {
 
     if (args.length < 6) {
@@ -51,13 +86,9 @@ object TwitterSentiment {
       .filter(_.getLang() == "en")
 
     val statuses = stream.map(status => {
-
-      val pipeline = SentimentPipeline()
       val text = status.getText()
-      val sentiment = pipeline.annotate(text)("sentiment").head
-
+      val sentiment = getSentiment(text)
       (sentiment, text, status.getUser.getName(), status.getUser.getScreenName(), status.getCreatedAt.toString)
-
     })
 
     statuses.foreachRDD { rdd =>
@@ -84,4 +115,5 @@ object TwitterSentiment {
     ssc.awaitTermination()
 
   }
+
 }

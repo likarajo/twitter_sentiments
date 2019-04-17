@@ -1,17 +1,9 @@
-Download Kafka (kafka_2.11-2.2.0.tgz)
-
-Open Terminal and cd to download location
-
-Un-tar the downloaded file
-> tar -xzf kafka_2.11-2.2.0.tgz
-
-Get into the directory of the extracted file
-> cd kafka_2.11-2.2.0
+Open a new Terminal, get into the KAFKA Home directory
 
 Run Zookeeper
 > bin/zookeeper-server-start.sh config/zookeeper.properties
 
-Open new terminal and go to the kafka_2.11-2.2.0 folder
+Open a new Terminal, get into the KAFKA Home directory
 
 Run Kafka
 > bin/kafka-server-start.sh config/server.properties

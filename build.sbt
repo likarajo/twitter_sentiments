@@ -12,9 +12,8 @@ libraryDependencies += "org.apache.spark" %% "spark-sql-kafka-0-10" % sparkVersi
 libraryDependencies += "org.apache.bahir" %% "spark-streaming-twitter" % "2.3.2"
 libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion
 libraryDependencies += "org.apache.spark" %% "spark-mllib" % sparkVersion
-libraryDependencies += "com.johnsnowlabs.nlp" %% "spark-nlp" % "1.8.0"
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.5.1"
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.5.1" classifier "models"
+
+libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.5.2" artifacts (Artifact("stanford-corenlp", "models"), Artifact("stanford-corenlp"))
 
 resolvers ++= Seq(
   "Akka Repository" at "http://repo.akka.io/releases/",

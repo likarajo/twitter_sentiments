@@ -17,6 +17,8 @@ libraryDependencies += "org.apache.bahir" %% "spark-streaming-twitter" % "2.3.2"
 
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.5.2" artifacts (Artifact("stanford-corenlp", "models"), Artifact("stanford-corenlp"))
 
+libraryDependencies += "com.github.pathikrit" %% "better-files" % "2.16.0"
+
 resolvers ++= Seq(
   "Akka Repository" at "http://repo.akka.io/releases/",
   "Ooyala Bintray" at "http://dl.bintray.com/ooyala/maven"

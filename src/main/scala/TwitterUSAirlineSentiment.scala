@@ -1,10 +1,13 @@
+import java.io.{File, PrintWriter}
+import java.util.Calendar
+
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.ml.{Pipeline, PipelineStage}
-import org.apache.spark.ml.classification.{DecisionTreeClassifier, LogisticRegression, NaiveBayes, RandomForestClassifier}
+import org.apache.spark.ml.classification._
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature._
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
+import org.apache.spark.ml.{Pipeline, PipelineStage}
 import org.apache.spark.sql.{Row, SparkSession}
 
 object TwitterUSAirlineSentiment {
@@ -17,6 +20,9 @@ object TwitterUSAirlineSentiment {
     }
 
     val Array(srcDataFile, outputDir) = args.take(2)
+
+    val time = Calendar.getInstance().getTime.toString.replaceAll(" ", "")
+    val writer = new PrintWriter(new File(outputDir + "/" + time + ".txt"))
 
     Logger.getLogger("org").setLevel(Level.OFF)
     Logger.getLogger("akka").setLevel(Level.OFF)
@@ -55,6 +61,7 @@ object TwitterUSAirlineSentiment {
     if (debug) println("Dropped rows with null Text | Remaining Rows: " + dataDF.count().toString)
 
     println("Data loaded and cleaned")
+    writer.write("Data loaded and cleaned\n")
 
     /** Set stages Pre-processing */
 
@@ -85,13 +92,14 @@ object TwitterUSAirlineSentiment {
     dataDF = pipeline.fit(dataDF).transform(dataDF)
 
     println("Data Pre-processed")
+    writer.write("Data Pre-processed\n")
 
     if (debug) dataDF.show(2)
     if (debug) dataDF.dtypes.foreach(println)
 
     /** Specify Models */
 
-    val dt = new DecisionTreeClassifier()
+    val dtc = new DecisionTreeClassifier()
       .setImpurity("entropy")
       .setFeaturesCol("features")
       .setLabelCol("label")
@@ -107,21 +115,22 @@ object TwitterUSAirlineSentiment {
       .setFeaturesCol("features")
       .setLabelCol("label")
 
-    val rf = new RandomForestClassifier()
+    val rfc = new RandomForestClassifier()
       .setImpurity("entropy")
       .setLabelCol("label")
       .setFeaturesCol("features")
       .setMaxBins(50)
 
     println("Models specified")
+    writer.write("Data Pre-processed\n")
 
     /** Create Pipeline and Parameter builder for Hyper-parameter tuning of models */
 
     val modelPipeline = new Pipeline()
 
     val paramGridDt = new ParamGridBuilder()
-      .baseOn(modelPipeline.stages -> Array[PipelineStage](dt))
-      .addGrid(dt.maxDepth, Range(1, 11))
+      .baseOn(modelPipeline.stages -> Array[PipelineStage](dtc))
+      .addGrid(dtc.maxDepth, Range(1, 11))
       .build()
 
     val paramGridNb = new ParamGridBuilder()
@@ -137,12 +146,12 @@ object TwitterUSAirlineSentiment {
       .build()
 
     val paramGridRf = new ParamGridBuilder()
-      .baseOn(modelPipeline.stages -> Array[PipelineStage](rf))
-      .addGrid(rf.maxDepth, Range(1, 11))
-      .addGrid(rf.numTrees, Array(5, 10, 15, 20))
+      .baseOn(modelPipeline.stages -> Array[PipelineStage](rfc))
+      .addGrid(rfc.maxDepth, Range(1, 11))
+      .addGrid(rfc.numTrees, Array(5, 10, 15, 20))
       .build()
 
-    val modelParamGrid = paramGridDt ++ paramGridNb ++ paramGridLr ++ paramGridRf
+    val modelParamGrid =  paramGridNb ++ paramGridRf ++ paramGridLr //++ paramGridDt ++
 
     if (debug) println("Pipeline and Parameter grid built for models")
 
@@ -173,34 +182,40 @@ object TwitterUSAirlineSentiment {
     /** Training with Best Model */
 
     println ("Running cross-validation to choose the best model...")
+    writer.write ("Running cross-validation to choose the best model...\n")
 
     val cvModel = cv.fit(training)
 
     println ("Best model found")
+    writer.write ("Best model found\n")
 
     val bestModel = cvModel.bestEstimatorParamMap
     println(bestModel)
+    writer.write(bestModel.toString())
 
-    println("Trained using best model")
+    println("Trained using best model\n")
 
     /** Make predictions */
 
     // Make predictions on test set. cvModel uses the best model found.
     val prediction = cvModel.transform(test)
 
-    println("Predictions made on test set")
+    println("Predictions made on test set\n")
 
     if (debug) prediction.select("id", "text", "label", "prediction")
       .collect()
       .foreach { case Row(id: String, text: String, label: Double, prediction: Double) =>
         println(s"prediction=$prediction, label=$label <- $text")
+        writer.write(s"prediction=$prediction, label=$label <- $text")
       }
 
     /** Evaluate Model */
 
     val modelAccuracy = modelEvaluator.evaluate(prediction)
     println(s"Accuracy is: $modelAccuracy")
+    writer.write(s"Accuracy is: $modelAccuracy\n")
 
+    writer.close()
     spark.stop()
 
     if (debug) println("Disconnected from Spark")

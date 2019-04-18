@@ -1,3 +1,5 @@
+Twitter Sentiment Analysis
+
 Refer to http://kafka.apache.org/quickstart for setting up Kafka in local machine.
 Refer to https://www.elastic.co/downloads for setting up Elasticsearch, Kibana, and Logstash in local machine.
 
@@ -16,7 +18,10 @@ Run
 $ bin/kafka-server-start.sh config/server.properties
 (Kafka runs in localhost:9092)
 
-3) Run Scala program jar with the required arguments
+3) Create Scala program jar, and run using arguments
+
+$ sbt
+> assembly
 
 $ spark-submit --class ClassName PathToJarFile
     <kafka server and port> <topic> <consumer key> <consumer secret> <access token> <access token secret> [<filters>]"
@@ -61,5 +66,13 @@ Search for the appropriate topic index: new_topic-index
 Create personal dashboard referring to https://www.elastic.co/guide/en/kibana/current/index.html
 
 ===================================
+
+Twitter US Airlines Sentiment Analysis
+
+A sentiment analysis job about the problems of each major U.S. airline.
+Twitter data scraped from February of 2015.
+To classify positive, negative, and neutral tweets, followed by categorizing negative reasons (such as "late flight" or "rude service").
+
+
 
 

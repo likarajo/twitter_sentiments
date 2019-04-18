@@ -1,9 +1,10 @@
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.classification.{DecisionTreeClassifier, NaiveBayes}
+import org.apache.spark.ml.{Pipeline, PipelineStage}
+import org.apache.spark.ml.classification.{DecisionTreeClassifier, LogisticRegression, NaiveBayes, RandomForestClassifier}
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature._
-import org.apache.spark.ml.tuning.{CrossValidator, ParamGridBuilder}
+import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
 import org.apache.spark.sql.{Row, SparkSession}
 
 object TwitterUSAirlineSentiment {
@@ -53,14 +54,12 @@ object TwitterUSAirlineSentiment {
 
     if (debug) println("Dropped rows with null Text | Remaining Rows: " + dataDF.count().toString)
 
-    if (debug) println("Training and Test set formed")
-
-    if (debug) dataDF.show(2)
+    println("Data loaded and cleaned")
 
     /** Set stages Pre-processing */
 
     //Breaking down the sentence in text column into words
-    val tokenizer = new Tokenizer().setInputCol("text").setOutputCol("words")
+    val tokenizer = new RegexTokenizer().setPattern("[a-zA-Z']+").setGaps(false).setInputCol("text").setOutputCol("words")
 
     // Remove stop-words from the words column
     val remover = new StopWordsRemover().setInputCol(tokenizer.getOutputCol).setOutputCol("cleanWords")
@@ -79,50 +78,87 @@ object TwitterUSAirlineSentiment {
     // Create pre-processing timeline with all the steps
     val pipeline = new Pipeline().setStages(Array(tokenizer, remover, hashingTF, indexer))
 
-    if (debug) println("Pipeline created")
+    if (debug) println("Pre processing Pipeline created")
 
-    /** Transform the dataset to pre-process */
+    /** Pre-process the dataset using the pipeline */
 
     dataDF = pipeline.fit(dataDF).transform(dataDF)
 
-    if (debug) println("Pre-processed dataset")
+    println("Data Pre-processed")
 
     if (debug) dataDF.show(2)
     if (debug) dataDF.dtypes.foreach(println)
 
-    /** Specify Model */
+    /** Specify Models */
 
     val dt = new DecisionTreeClassifier()
       .setImpurity("entropy")
+      .setFeaturesCol("features")
+      .setLabelCol("label")
+      .setMaxBins(50)
 
     val nb = new NaiveBayes()
       .setModelType("multinomial")
+      .setFeaturesCol("features")
+      .setLabelCol("label")
 
-    if (debug) println("Model specified")
+    val lr = new LogisticRegression()
+      .setFamily("multinomial")
+      .setFeaturesCol("features")
+      .setLabelCol("label")
 
-    /** Create Parameter builder for Hyper-parameter tuning */
+    val rf = new RandomForestClassifier()
+      .setImpurity("entropy")
+      .setLabelCol("label")
+      .setFeaturesCol("features")
+      .setMaxBins(50)
 
-    val paramGrid = new ParamGridBuilder()
-      //.addGrid(dt.maxDepth, Array(3, 5, 10))
-      .addGrid(nb.smoothing, Array(0.01, 0.1, 1.0, 10))
+    println("Models specified")
+
+    /** Create Pipeline and Parameter builder for Hyper-parameter tuning of models */
+
+    val modelPipeline = new Pipeline()
+
+    val paramGridDt = new ParamGridBuilder()
+      .baseOn(modelPipeline.stages -> Array[PipelineStage](dt))
+      .addGrid(dt.maxDepth, Range(1, 11))
       .build()
 
-    if (debug) println("Parameter grid built")
+    val paramGridNb = new ParamGridBuilder()
+      .baseOn(modelPipeline.stages -> Array[PipelineStage](nb))
+      .addGrid(nb.smoothing, Array( 15.0, 20.0, 25))
+      .build()
+
+    val paramGridLr = new ParamGridBuilder()
+      .baseOn(modelPipeline.stages -> Array[PipelineStage](lr))
+      .addGrid(lr.maxIter, Array(20, 25, 30, 35))
+      .addGrid(lr.regParam, Array(0.0005, 0.001, 0.005, 0.01))
+      .addGrid(lr.elasticNetParam, Array(0.7, 0.8, 0.9))
+      .build()
+
+    val paramGridRf = new ParamGridBuilder()
+      .baseOn(modelPipeline.stages -> Array[PipelineStage](rf))
+      .addGrid(rf.maxDepth, Range(1, 11))
+      .addGrid(rf.numTrees, Array(5, 10, 15, 20))
+      .build()
+
+    val modelParamGrid = paramGridDt ++ paramGridNb ++ paramGridLr ++ paramGridRf
+
+    if (debug) println("Pipeline and Parameter grid built for models")
 
     /** Set evaluator */
 
-    val evaluator = new MulticlassClassificationEvaluator()
+    val modelEvaluator = new MulticlassClassificationEvaluator()
       .setLabelCol("label")
       .setPredictionCol("prediction")
-      // "f1" (default), "weightedPrecision", "weightedRecall", "accuracy"
-      .setMetricName("accuracy")
+      .setMetricName("accuracy") // "f1" (default), "weightedPrecision", "weightedRecall", "accuracy"
 
     /** Find best model */
 
     val cv = new CrossValidator()
-      .setEstimator(nb)
-      .setEvaluator(evaluator)
-      .setEstimatorParamMaps(paramGrid)
+      .setEstimator(modelPipeline)
+      .setEvaluator(modelEvaluator)
+      .setEstimatorParamMaps(modelParamGrid)
       .setNumFolds(5)
       .setParallelism(3) // Evaluate up to 3 parameter settings in parallel
 
@@ -130,32 +166,40 @@ object TwitterUSAirlineSentiment {
 
     /** Split the data into training and test sets */
 
-    var Array(training, test) = dataDF.randomSplit(Array(0.9, 0.1), seed = 11L)
+    val Array(training, test) = dataDF.randomSplit(Array(0.9, 0.1), seed = 11L)
+
+    if (debug) println("Training and Test set formed")
 
     /** Training with Best Model */
 
-    // Run cross-validation, and choose the best set of parameters.
+    println ("Running cross-validation to choose the best model...")
+
     val cvModel = cv.fit(training)
 
-    if (debug) println("Model trained")
+    println ("Best model found")
+
+    val bestModel = cvModel.bestEstimatorParamMap
+    println(bestModel)
+
+    println("Trained using best model")
 
     /** Make predictions */
 
     // Make predictions on test set. cvModel uses the best model found.
     val prediction = cvModel.transform(test)
 
-    if (debug) println("Predictions made on test set")
+    println("Predictions made on test set")
 
-    prediction.select("text", "label", "prediction")
+    if (debug) prediction.select("id", "text", "label", "prediction")
       .collect()
-      .foreach { case Row(text: String, label: Double, prediction: Double) =>
+      .foreach { case Row(id: String, text: String, label: Double, prediction: Double) =>
         println(s"prediction=$prediction, label=$label <- $text")
       }
 
     /** Evaluate Model */
 
-    val accuracy = evaluator.evaluate(prediction)
-    println(s"Accuracy is: $accuracy")
+    val modelAccuracy = modelEvaluator.evaluate(prediction)
+    println(s"Accuracy is: $modelAccuracy")
 
     spark.stop()
 
@@ -163,5 +207,13 @@ object TwitterUSAirlineSentiment {
 
   }
 
+  implicit class BestParamMapCrossValidatorModel(cvModel: CrossValidatorModel) {
+    def bestEstimatorParamMap: ParamMap = {
+      cvModel.getEstimatorParamMaps
+        .zip(cvModel.avgMetrics)
+        .maxBy(_._2)
+        ._1
+    }
+  }
 
 }

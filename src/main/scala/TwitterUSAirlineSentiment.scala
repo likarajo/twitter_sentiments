@@ -1,6 +1,6 @@
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.classification.DecisionTreeClassifier
+import org.apache.spark.ml.classification.{DecisionTreeClassifier, NaiveBayes}
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature._
 import org.apache.spark.ml.tuning.{CrossValidator, ParamGridBuilder}
@@ -93,13 +93,18 @@ object TwitterUSAirlineSentiment {
     /** Specify Model */
 
     val dt = new DecisionTreeClassifier()
+      .setImpurity("entropy")
+
+    val nb = new NaiveBayes()
+      .setModelType("multinomial")
 
     if (debug) println("Model specified")
 
     /** Create Parameter builder for Hyper-parameter tuning */
 
     val paramGrid = new ParamGridBuilder()
-      .addGrid(dt.maxDepth, Array(3, 5, 10))
+      //.addGrid(dt.maxDepth, Array(3, 5, 10))
+      .addGrid(nb.smoothing, Array(0.01, 0.1, 1.0, 10))
       .build()
 
     if (debug) println("Parameter grid built")
@@ -115,7 +120,7 @@ object TwitterUSAirlineSentiment {
     /** Find best model */
 
     val cv = new CrossValidator()
-      .setEstimator(dt)
+      .setEstimator(nb)
       .setEvaluator(evaluator)
       .setEstimatorParamMaps(paramGrid)
       .setNumFolds(5)

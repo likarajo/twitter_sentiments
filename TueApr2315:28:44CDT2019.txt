@@ -1,0 +1,12 @@
+Data loaded and cleaned
+Data Pre-processed
+Data Pre-processed
+Running cross-validation to choose the best model...
+Best model found
+{
+	logreg_91e23c8a1cc9-elasticNetParam: 0.8,
+	logreg_91e23c8a1cc9-maxIter: 25,
+	logreg_91e23c8a1cc9-regParam: 0.001,
+	pipeline_f9989ab119c2-stages: [Lorg.apache.spark.ml.PipelineStage;@1435a8ca
+}
+Accuracy is: 0.6518163125428376

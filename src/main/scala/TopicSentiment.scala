@@ -12,7 +12,7 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import twitter4j.auth.OAuthAuthorization
 import twitter4j.conf.ConfigurationBuilder
 
-object TwitterSentiment {
+object TopicSentiment {
 
   /** Create pipeline of Stanford CoreNLP */
   val props = new Properties()
@@ -63,9 +63,8 @@ object TwitterSentiment {
     Logger.getLogger("twitter4j").setLevel(Level.OFF)
 
     val spark = SparkSession
-      .builder()
+      .builder()//.master("local[*]")
       .appName("TwitterSentiment")
-      .master("local[*]")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -88,7 +87,6 @@ object TwitterSentiment {
     val statuses = stream.map(status => {
       val text = status.getText()
       val sentiment = getSentiment(text)
-      //(sentiment, text, status.getUser.getName(), status.getUser.getScreenName(), status.getCreatedAt.toString)
       sentiment
     })
 

@@ -10,12 +10,12 @@ import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGri
 import org.apache.spark.ml.{Pipeline, PipelineStage}
 import org.apache.spark.sql.{Row, SparkSession}
 
-object TwitterUSAirlineSentiment {
+object USAirlineSentiment {
 
   def main(args: Array[String]): Unit = {
 
     if (args.length < 2) {
-      System.err.println("Usage: TwitterUSAirlineSentiment <input file path> <output directory path>")
+      System.err.println("Usage: USAirlineSentiment <input file path> <output directory path>")
       System.exit(1)
     }
 
@@ -30,9 +30,8 @@ object TwitterUSAirlineSentiment {
     val debug = false
 
     val spark = SparkSession
-      .builder
-      .master("local[*]")
-      .appName("Twitter US Airline Sentiment")
+      .builder//.master("local[*]")
+      .appName("TwitterUSAirlineSentiment")
       .getOrCreate()
 
     if (debug) println("Connected to Spark")
@@ -128,11 +127,6 @@ object TwitterUSAirlineSentiment {
 
     val modelPipeline = new Pipeline()
 
-    val paramGridDt = new ParamGridBuilder()
-      .baseOn(modelPipeline.stages -> Array[PipelineStage](dtc))
-      .addGrid(dtc.maxDepth, Range(1, 11))
-      .build()
-
     val paramGridNb = new ParamGridBuilder()
       .baseOn(modelPipeline.stages -> Array[PipelineStage](nb))
       .addGrid(nb.smoothing, Array( 15.0, 20.0, 25))
@@ -151,7 +145,7 @@ object TwitterUSAirlineSentiment {
       .addGrid(rfc.numTrees, Array(5, 10, 15, 20))
       .build()
 
-    val modelParamGrid =  paramGridNb ++ paramGridRf ++ paramGridLr //++ paramGridDt ++
+    val modelParamGrid =    paramGridRf ++ paramGridNb ++ paramGridLr
 
     if (debug) println("Pipeline and Parameter grid built for models")
 
@@ -191,7 +185,7 @@ object TwitterUSAirlineSentiment {
 
     val bestModel = cvModel.bestEstimatorParamMap
     println(bestModel)
-    writer.write(bestModel.toString())
+    writer.write(bestModel.toString()+"\n")
 
     println("Trained using best model\n")
 

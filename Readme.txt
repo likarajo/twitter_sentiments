@@ -41,13 +41,13 @@ Create a file logstash-simple.conf with following content:
 input {
 kafka {
 bootstrap_servers => "localhost:9092"
-topics => ["new_topic"]
+topics => ["lemonade"]
 }
 }
 output {
 elasticsearch {
 hosts => ["localhost:9200"]
-index => "new_topic-index"
+index => "lemonade-index"
 }
 }
 
@@ -62,7 +62,7 @@ Run
 $ bin/kibana
 
 Goto http://localhost:5601 in web browser
-Search for the appropriate topic index: new_topic-index
+Search for the appropriate topic index: lemonade-index
 Create personal dashboard referring to https://www.elastic.co/guide/en/kibana/current/index.html
 
 ===================================
@@ -72,6 +72,21 @@ Twitter US Airlines Sentiment Analysis
 A sentiment analysis job about the problems of each major U.S. airline.
 Twitter data scraped from February of 2015.
 To classify positive, negative, and neutral tweets, followed by categorizing negative reasons (such as "late flight" or "rude service").
+
+1) Upload the data/Tweets.csv to Amazon S3 -> s3://bucket/data/Tweets.csv
+
+2) Create and Upload the jar file to Amazon S3 -> s3://bucket/twittersentiment_2.11-0.1.jar
+
+3) Create an Amazon EMR cluster having Spark
+
+4) Create a job in the cluster and add details:
+
+class name: USAirlineSentiment
+path to jar: s3://bucket/twittersentiment_2.11-0.1.jar
+argument1 (input file path): s3://bucket/data/Tweets.csv
+argument2 (output directory path): s3://bucket
+
+
 
 
 

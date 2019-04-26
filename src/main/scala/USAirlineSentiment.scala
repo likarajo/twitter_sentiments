@@ -22,7 +22,7 @@ object USAirlineSentiment {
     val Array(srcDataFile, outputDir) = args.take(2)
 
     val time = Calendar.getInstance().getTime.toString.replaceAll(" ", "")
-    val writer = new PrintWriter(new File(outputDir + "/" + time + ".txt"))
+    val writer = new PrintWriter(new File(outputDir + "/output_" + time + ".txt"))
 
     Logger.getLogger("org").setLevel(Level.OFF)
     Logger.getLogger("akka").setLevel(Level.OFF)
@@ -30,8 +30,8 @@ object USAirlineSentiment {
     val debug = false
 
     val spark = SparkSession
-      .builder//.master("local[*]")
-      .appName("TwitterUSAirlineSentiment")
+      .builder
+      .appName("USAirlineSentiment")
       .getOrCreate()
 
     if (debug) println("Connected to Spark")
@@ -46,7 +46,6 @@ object USAirlineSentiment {
       .option("delimiter", ",")
       .option("header", "true")
       .option("inferSchema", "true")
-      .option("nullValue", "NA") // replace null values with NA
       .load(srcDataFile)
       .withColumnRenamed("airline_sentiment", "sentiment")
       .withColumnRenamed("tweet_id", "id")
@@ -59,13 +58,13 @@ object USAirlineSentiment {
 
     if (debug) println("Dropped rows with null Text | Remaining Rows: " + dataDF.count().toString)
 
-    println("Data loaded and cleaned")
-    writer.write("Data loaded and cleaned\n")
+    println("Data loaded")
+    writer.write("Data loaded\n")
 
-    /** Set stages Pre-processing */
+    /** Set stages of Pre-processing */
 
     //Breaking down the sentence in text column into words
-    val tokenizer = new RegexTokenizer().setPattern("[a-zA-Z']+").setGaps(false).setInputCol("text").setOutputCol("words")
+    val tokenizer = new RegexTokenizer().setPattern("[a-zA-Z'](\\w+)").setGaps(false).setMinTokenLength(3).setInputCol("text").setOutputCol("words")
 
     // Remove stop-words from the words column
     val remover = new StopWordsRemover().setInputCol(tokenizer.getOutputCol).setOutputCol("cleanWords")
@@ -98,12 +97,6 @@ object USAirlineSentiment {
 
     /** Specify Models */
 
-    val dtc = new DecisionTreeClassifier()
-      .setImpurity("entropy")
-      .setFeaturesCol("features")
-      .setLabelCol("label")
-      .setMaxBins(50)
-
     val nb = new NaiveBayes()
       .setModelType("multinomial")
       .setFeaturesCol("features")
@@ -129,7 +122,7 @@ object USAirlineSentiment {
 
     val paramGridNb = new ParamGridBuilder()
       .baseOn(modelPipeline.stages -> Array[PipelineStage](nb))
-      .addGrid(nb.smoothing, Array( 15.0, 20.0, 25))
+      .addGrid(nb.smoothing, Array(15.0, 20.0, 25))
       .build()
 
     val paramGridLr = new ParamGridBuilder()
@@ -145,7 +138,7 @@ object USAirlineSentiment {
       .addGrid(rfc.numTrees, Array(5, 10, 15, 20))
       .build()
 
-    val modelParamGrid =    paramGridRf ++ paramGridNb ++ paramGridLr
+    val modelParamGrid = paramGridRf ++ paramGridNb ++ paramGridLr
 
     if (debug) println("Pipeline and Parameter grid built for models")
 
@@ -175,17 +168,17 @@ object USAirlineSentiment {
 
     /** Training with Best Model */
 
-    println ("Running cross-validation to choose the best model...")
-    writer.write ("Running cross-validation to choose the best model...\n")
+    println("Running cross-validation to choose the best model...")
+    writer.write("Running cross-validation to choose the best model...\n")
 
     val cvModel = cv.fit(training)
 
-    println ("Best model found")
-    writer.write ("Best model found\n")
+    println("Best model found")
+    writer.write("Best model found\n")
 
     val bestModel = cvModel.bestEstimatorParamMap
     println(bestModel)
-    writer.write(bestModel.toString()+"\n")
+    writer.write(bestModel.toString() + "\n")
 
     println("Trained using best model\n")
 

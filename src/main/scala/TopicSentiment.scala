@@ -19,33 +19,6 @@ object TopicSentiment {
   props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
   val pipeline = new StanfordCoreNLP(props)
 
-  /** Create method for obtaining sentiment of a text */
-  def getSentiment(text: String): String = {
-    var mainSentiment = 0
-    if (text != null && text.length() > 0) {
-      var longest = 0
-      val annotation = pipeline.process(text)
-      val list = annotation.get(classOf[CoreAnnotations.SentencesAnnotation])
-      val it = list.iterator()
-      while (it.hasNext) {
-        val sentence = it.next()
-        val tree = sentence.get(classOf[SentimentCoreAnnotations.SentimentAnnotatedTree])
-        val sentiment = RNNCoreAnnotations.getPredictedClass(tree)
-        val partText = sentence.toString()
-        if (partText.length() > longest) {
-          mainSentiment = sentiment
-          longest = partText.length()
-        }
-      }
-    }
-    if (mainSentiment < 2)
-      "Negative"
-    else if (mainSentiment == 2)
-      "Neutral"
-    else
-      "Positive"
-  }
-
   /** Define the main method **/
   def main(args: Array[String]): Unit = {
 
@@ -63,8 +36,9 @@ object TopicSentiment {
     Logger.getLogger("twitter4j").setLevel(Level.OFF)
 
     val spark = SparkSession
-      .builder()//.master("local[*]")
-      .appName("TwitterSentiment")
+      .builder()
+      //.master("local[*]") // To be removed when running on Spark Cluster not on Local Machine
+      .appName("TopicSentiment")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -113,6 +87,33 @@ object TopicSentiment {
     ssc.start()
     ssc.awaitTermination()
 
+  }
+
+  /** Create method for obtaining sentiment of a text */
+  def getSentiment(text: String): String = {
+    var mainSentiment = 0
+    if (text != null && text.length() > 0) {
+      var longest = 0
+      val annotation = pipeline.process(text)
+      val list = annotation.get(classOf[CoreAnnotations.SentencesAnnotation])
+      val it = list.iterator()
+      while (it.hasNext) {
+        val sentence = it.next()
+        val tree = sentence.get(classOf[SentimentCoreAnnotations.SentimentAnnotatedTree])
+        val sentiment = RNNCoreAnnotations.getPredictedClass(tree)
+        val partText = sentence.toString()
+        if (partText.length() > longest) {
+          mainSentiment = sentiment
+          longest = partText.length()
+        }
+      }
+    }
+    if (mainSentiment < 2)
+      "Negative"
+    else if (mainSentiment == 2)
+      "Neutral"
+    else
+      "Positive"
   }
 
 }

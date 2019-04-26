@@ -51,8 +51,8 @@ $ bin/logstash -f logstash-simple.conf
 $ sbt
 > assembly
 
-$ spark-submit --class ClassName PathToJarFile
-    <kafka server and port> <topic> <consumer key> <consumer secret> <access token> <access token secret> [<filters>]"
+$ spark-submit --class TopicSentiment <PathToJarFile>
+    <kafka server and port> <topic> <consumer key> <consumer secret> <access token> <access token secret> lemonade
 
 6) Kibana: Visualize your data. Navigate the Stack
 
@@ -65,7 +65,7 @@ Goto http://localhost:5601 in web browser
 Search for the appropriate topic index: lemonade-index
 Create personal dashboard referring to https://www.elastic.co/guide/en/kibana/current/index.html
 
-Sample Report:
+Sample Report: Twitter_Sentiment_Analysis-lemonade.docx
 
 ===================================
 

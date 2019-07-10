@@ -1,8 +1,7 @@
 # Twitter Sentiment Analysis
 
-### References
-* [Setting up Kafka in local machine](http://kafka.apache.org/quickstart)
-* [Setting up Elasticsearch, Kibana, and Logstash in local machine](https://www.elastic.co/downloads)
+## Report
+[Sentiment analysis of tweets on "lemonade"](Twitter_Sentiment_Analysis-lemonade.pdf)
 
 ## Components
 
@@ -62,8 +61,6 @@ $ spark-submit --class TopicSentiment <PathToJarFile>
 * Search for the appropriate topic index: *lemonade-index*
 * [Create personal dashboard](https://www.elastic.co/guide/en/kibana/current/index.html)<br>
 
-Sample Report: Twitter_Sentiment_Analysis-lemonade.docx
-
-
-
-
+## References
+* [Setting up Kafka in local machine](http://kafka.apache.org/quickstart)
+* [Setting up Elasticsearch, Kibana, and Logstash in local machine](https://www.elastic.co/downloads)

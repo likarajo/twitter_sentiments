@@ -3,6 +3,8 @@
 ## Report
 [Sentiment analysis of tweets on "lemonade"](Twitter_Sentiment_Analysis-lemonade.pdf)
 
+![](tweet-sentiment.png)
+
 ## Components
 
 ### 1) Zookeeper: Administrator

@@ -1,5 +1,3 @@
-# Twitter Sentiment Analysis
-
 ## Report
 [Sentiment analysis of tweets on "lemonade"](Twitter_Sentiment_Analysis-lemonade.pdf)
 

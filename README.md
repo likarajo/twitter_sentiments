@@ -3,6 +3,8 @@
 ## Report
 [Sentiment analysis of tweets on "lemonade"](Twitter_Sentiment_Analysis-lemonade.pdf)
 
+[Sentiment analysis of tweets on "Fauci"](Twitter_Sentiment_Analysis-lemonade.pdf)
+
 ![](tweet-sentiment.png)
 
 ## Components
@@ -66,3 +68,14 @@ $ spark-submit --class TopicSentiment <PathToJarFile>
 ## References
 * [Setting up Kafka in local machine](http://kafka.apache.org/quickstart)
 * [Setting up Elasticsearch, Kibana, and Logstash in local machine](https://www.elastic.co/downloads)
+
+---
+
+The R script has to be run within R Studio
+
+Steps to run: -
+1) Open R studion
+2) Create a new project
+3) Import the main.R file
+4) Run the script line by line
+5) Get the outputs in the Console or in Plots

@@ -3,7 +3,7 @@
 ## Report
 [Sentiment analysis of tweets on "lemonade"](Twitter_Sentiment_Analysis-lemonade.pdf)
 
-[Sentiment analysis of tweets on "Fauci"](Twitter_Sentiment_Analysis-lemonade.pdf)
+[Sentiment analysis of tweets on "Fauci"](Twitter_Sentiment_Analysis-Fauci.pdf)
 
 ![](tweet-sentiment.png)
 
